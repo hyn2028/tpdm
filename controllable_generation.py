@@ -456,7 +456,7 @@ def get_tpdm_uncond(sde, predictor, corrector, inverse_scaler, config,
                 if i % 2 == 0: # reverse diffusion with primary model
                     t = timesteps[i]
                     x_batch, x_mean_batch = corrector_tpdm_uncond_update_fn(model, x_batch, t)
-                    x_batch, x_mean_batch = corrector_tpdm_uncond_update_fn(model, x_batch, t)
+                    x_batch, x_mean_batch = predictor_tpdm_uncond_update_fn(model, x_batch, t)
 
                 else: # reverse diffusion with auxiliary model
                     t = timesteps[i]
