@@ -3,6 +3,8 @@ import torchmetrics as tm
 import numpy as np
 
 import os
+import argparse
+from typing import Union
 
 from models import utils as mutils
 from models.ema import ExponentialMovingAverage
@@ -115,4 +117,32 @@ def print_and_save_eval_result(volume_recon, volume_label, save_root):
         f.write(f"PSNR (sagittal) : {psnr_s:.4f}, SSIM (sagittal) : {ssim_s:.4f}\n")
         f.write(f"PSNR (axial) : {psnr_a:.4f}, SSIM (axial) : {ssim_a:.4f}\n")
 
-    
+
+def int_or_float(value):
+    try:
+        return int(value)
+    except ValueError:
+        try:
+            return float(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"Invalid number: {value}")
+        
+
+def check_K(K: Union[int, float]):
+    if isinstance(K, int):
+        if K < 2:
+            raise ValueError(f"K should be greater than 1 when K is integer, but got {K}")
+    elif isinstance(K, float):
+        if K <= 0.0:
+            raise ValueError(f"K should be greater than 0 when K is float, but got {K}")
+    else:
+        assert False, f"Unexpected type {type(K)} for K"
+
+
+def is_primary_tern(i: int, K: Union[int, float]) -> bool:
+    if isinstance(K, int):
+        return i % K != K - 1
+    elif isinstance(K, float):
+        return (torch.rand(1) > 1/K).item()
+    else:
+        assert False, f"Unexpected type {type(K)} for K"

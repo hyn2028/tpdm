@@ -7,10 +7,12 @@ import functools
 
 from sampling import shared_corrector_update_fn, shared_predictor_update_fn
 from utils import clear, fft2
+from tpdm_utils import check_K, is_primary_tern
 
 
-def get_tpdm_zsr(sde, predictor, corrector, inverse_scaler, config, dps_weight,
+def get_tpdm_zsr(sde, predictor, corrector, inverse_scaler, config, dps_weight, K,
                           factor, save_root, save_progress, denoise=True, eps=1e-5, z_mask_idxs=None):
+    check_K(K)
 
     def get_M(factor: int):
         if factor == 2:
@@ -147,7 +149,8 @@ def get_tpdm_zsr(sde, predictor, corrector, inverse_scaler, config, dps_weight,
         dataloader_md = torch.tensor_split(measure_dagger, batch_len)
         
         for i in tqdm(range(sde.N), colour="blue", unit="step", smoothing=0):
-            if i % 2 == 1:
+            primary_tern = is_primary_tern(i, K)
+            if not primary_tern:
                 # [X, 1, Y, Z] -> [Z, 1, X, Y]
                 x = x.permute(3, 1, 0, 2)
 
@@ -157,7 +160,7 @@ def get_tpdm_zsr(sde, predictor, corrector, inverse_scaler, config, dps_weight,
             x_mean_batch_s = []
 
             for x_batch, gray_scale_img_batch in tqdm(zip(dataloader, dataloader_md), total=batch_len, colour="blue", unit="mb", leave=False):
-                if i % 2 == 0: # reverse diffusion with primary model + DPS
+                if primary_tern: # reverse diffusion with primary model + DPS
                     t = timesteps[i]
                     x_batch, x_mean_batch = corrector_tpdm_zsr_update_fn(model_pri, gray_scale_img_batch, x_batch, t)
                     x_batch, x_mean_batch = predictor_tpdm_zsr_update_fn(model_pri, gray_scale_img_batch, x_batch, t)
@@ -173,7 +176,7 @@ def get_tpdm_zsr(sde, predictor, corrector, inverse_scaler, config, dps_weight,
             x = torch.cat(x_batch_s, dim=0)
             x_mean = torch.cat(x_mean_batch_s, dim=0)
 
-            if i % 2 == 1:
+            if not primary_tern:
                 # [Z, 1, X, Y] -> [X, 1, Y, Z]
                 x = x.permute(2, 1, 3, 0)
                 x_mean = x_mean.permute(2, 1, 3, 0)
@@ -187,8 +190,9 @@ def get_tpdm_zsr(sde, predictor, corrector, inverse_scaler, config, dps_weight,
     return tpdm_zsr
 
 
-def get_tpdm_cs_mri(sde, predictor, corrector, inverse_scaler, config,
+def get_tpdm_cs_mri(sde, predictor, corrector, inverse_scaler, config, K,
                     save_root, save_progress, dps_weight, denoise=True, eps=1e-5):
+    check_K(K)
 
     predictor_update_fn = functools.partial(shared_predictor_update_fn,
                                             sde=sde,
@@ -256,7 +260,8 @@ def get_tpdm_cs_mri(sde, predictor, corrector, inverse_scaler, config,
         dataloader_mask = torch.tensor_split(mask, batch_len)
         
         for i in tqdm(range(sde.N), colour="blue", unit="step", smoothing=0):
-            if i % 2 == 1:
+            primary_tern = is_primary_tern(i, K)
+            if not primary_tern:
                 # [Z, 1, X, Y] -> [X, 1, Y, Z]
                 x = x.permute(2, 1, 3, 0)
 
@@ -266,7 +271,7 @@ def get_tpdm_cs_mri(sde, predictor, corrector, inverse_scaler, config,
             x_mean_batch_s = []
 
             for x_batch, measure_kspace_batch, mask_batch in tqdm(zip(dataloader, dataloader_measure_kspace, dataloader_mask), total=batch_len, colour="blue", unit="mb", leave=False):
-                if i % 2 == 0: # reverse diffusion with primary model + DPS
+                if primary_tern: # reverse diffusion with primary model + DPS
                     t = timesteps[i]
                     x_batch, x_mean_batch = corrector_tpdm_cs_mri_update_fn(model_pri, measure_kspace_batch, mask_batch, x_batch, t)
                     x_batch, x_mean_batch = predictor_tpdm_cs_mri_update_fn(model_pri, measure_kspace_batch, mask_batch, x_batch, t)
@@ -282,7 +287,7 @@ def get_tpdm_cs_mri(sde, predictor, corrector, inverse_scaler, config,
             x = torch.cat(x_batch_s, dim=0)
             x_mean = torch.cat(x_mean_batch_s, dim=0)
 
-            if i % 2 == 1:
+            if not primary_tern:
                 # [X, 1, Y, Z] -> [Z, 1, X, Y]
                 x = x.permute(3, 1, 0, 2)
                 x_mean = x_mean.permute(3, 1, 0, 2)
@@ -296,8 +301,9 @@ def get_tpdm_cs_mri(sde, predictor, corrector, inverse_scaler, config,
     return tpdm_cs_mri
 
 
-def get_tpdm_sv_ct(sde, predictor, corrector, inverse_scaler, config, radon,
+def get_tpdm_sv_ct(sde, predictor, corrector, inverse_scaler, config, radon, K,
                    save_root, save_progress, dps_weight, denoise=True, eps=1e-5):
+    check_K(K)
 
     predictor_update_fn = functools.partial(shared_predictor_update_fn,
                                             sde=sde,
@@ -365,7 +371,8 @@ def get_tpdm_sv_ct(sde, predictor, corrector, inverse_scaler, config, radon,
         dataloader_measure_sino = torch.tensor_split(measure_sino, batch_len)
        
         for i in tqdm(range(sde.N), colour="blue", unit="step", smoothing=0):
-            if i % 2 == 1:
+            primary_tern = is_primary_tern(i, K)
+            if not primary_tern:
                 # [Z, 1, X, Y] -> [X, 1, Y, Z]
                 x = x.permute(2, 1, 3, 0)
 
@@ -375,7 +382,7 @@ def get_tpdm_sv_ct(sde, predictor, corrector, inverse_scaler, config, radon,
             x_mean_batch_s = []
 
             for x_batch, measure_sino_batch in tqdm(zip(dataloader, dataloader_measure_sino), total=batch_len, colour="blue", unit="mb", leave=False):
-                if i % 2 == 0: # reverse diffusion with primary model + DPS
+                if primary_tern: # reverse diffusion with primary model + DPS
                     t = timesteps[i]
                     x_batch, x_mean_batch = corrector_tpdm_sv_ct_update_fn(model_pri, measure_sino_batch, x_batch, t)
                     x_batch, x_mean_batch = predictor_tpdm_sv_ct_update_fn(model_pri, measure_sino_batch, x_batch, t)
@@ -391,7 +398,7 @@ def get_tpdm_sv_ct(sde, predictor, corrector, inverse_scaler, config, radon,
             x = torch.cat(x_batch_s, dim=0)
             x_mean = torch.cat(x_mean_batch_s, dim=0)
 
-            if i % 2 == 1:
+            if not primary_tern:
                 # [X, 1, Y, Z] -> [Z, 1, X, Y]
                 x = x.permute(3, 1, 0, 2)
                 x_mean = x_mean.permute(3, 1, 0, 2)
@@ -405,8 +412,10 @@ def get_tpdm_sv_ct(sde, predictor, corrector, inverse_scaler, config, radon,
     return tpdm_sv_ct
 
 
-def get_tpdm_uncond(sde, predictor, corrector, inverse_scaler, config, 
+def get_tpdm_uncond(sde, predictor, corrector, inverse_scaler, config, K,
                     save_root, save_progress, denoise=True, eps=1e-5):
+    check_K(K)
+
     predictor_update_fn = functools.partial(shared_predictor_update_fn,
                                             sde=sde,
                                             predictor=predictor,
@@ -443,7 +452,8 @@ def get_tpdm_uncond(sde, predictor, corrector, inverse_scaler, config,
         timesteps = torch.linspace(sde.T, eps, sde.N)
         
         for i in tqdm(range(sde.N), colour="blue", unit="step", smoothing=0):
-            if i % 2 == 1:
+            primary_tern = is_primary_tern(i, K)
+            if not primary_tern:
                 # [X, 1, Y, Z] -> [Z, 1, X, Y]
                 x = x.permute(3, 1, 0, 2)
 
@@ -453,7 +463,7 @@ def get_tpdm_uncond(sde, predictor, corrector, inverse_scaler, config,
             x_mean_batch_s = []
 
             for x_batch in tqdm(dataloader, total=batch_len, colour="blue", unit="mb", leave=False):
-                if i % 2 == 0: # reverse diffusion with primary model
+                if primary_tern: # reverse diffusion with primary model
                     t = timesteps[i]
                     x_batch, x_mean_batch = corrector_tpdm_uncond_update_fn(model, x_batch, t)
                     x_batch, x_mean_batch = predictor_tpdm_uncond_update_fn(model, x_batch, t)
@@ -469,7 +479,7 @@ def get_tpdm_uncond(sde, predictor, corrector, inverse_scaler, config,
             x = torch.cat(x_batch_s, dim=0)
             x_mean = torch.cat(x_mean_batch_s, dim=0)
 
-            if i % 2 == 1:
+            if not primary_tern:
                 # [Z, 1, X, Y] -> [X, 1, Y, Z]
                 x = x.permute(2, 1, 3, 0)
                 x_mean = x_mean.permute(2, 1, 3, 0)

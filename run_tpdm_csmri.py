@@ -28,12 +28,17 @@ def main():
                             help="(optional) Path to auxiliary model checkpoint.")
     argparser.add_argument('--problem-name', type=str, default="BMR_CS_256",
                             help="(optional) Name of the problem which will be used to name the result directory.")
-    argparser.add_argument('--batch-size', type=int, default=8,
+    argparser.add_argument('--batch-size', type=int, default=6,
                             help="(optional) Batch size for sampling.")
     argparser.add_argument('--acc-factor', type=int, default=48,
                             help="(optional) Accerelation factor for CS-MRI (Poisson).")
     argparser.add_argument('--dps-weight', type=float, default=None,
                             help="(optional) Weight of DPS step.")
+    argparser.add_argument('--K', type=tutils.int_or_float, default=2,
+                            help="(optional) Sampling contribution ratio of primary and auxiliary models. " + 
+                            "Int inputs use a deterministic scheduler, while float inputs use a stochastic scheduler." + 
+                            "Int K means primary model and auxiliary model will be updated K-1 times and 1 time, respectively." + 
+                            "Float K means 1-(1/K) probability of updating the primary model and 1/K probability of updating the auxiliary model.")
     args = argparser.parse_args()
 
     if args.dps_weight is None:
@@ -44,7 +49,7 @@ def main():
             raise ValueError("There is no default DPS weight for the given accerelation factor. Please specify the DPS weight manually.")
 
 
-    save_root = Path(f"./invp_results/{args.problem_name}/x{args.acc_factor}/lamb{args.dps_weight}/{datetime.datetime.now().strftime('%y%m%d_%H%M%S')}/")
+    save_root = Path(f"./invp_results/{args.problem_name}/x{args.acc_factor}/K{args.K}/lamb{args.dps_weight}/{datetime.datetime.now().strftime('%y%m%d_%H%M%S')}/")
     config = configs.get_config()
     config.eval.batch_size = args.batch_size
 
@@ -72,6 +77,7 @@ def main():
                                                             save_progress=True,
                                                             save_root=save_root,
                                                             dps_weight=args.dps_weight,
+                                                            K=args.K,
                                                             denoise=True)
 
 
