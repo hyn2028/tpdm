@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 import argparse
 import datetime
+import logging
 
 from configs.ve import BMR_ZSR_256 as configs
 from utils import clear
@@ -14,28 +15,37 @@ import datasets
 import tpdm_utils as tutils
 from physics.ct import CT
 
+SV_CT_DPS_WEIGHT_MAP = {5: 0.025}
 
 def main():
     # parse arguments
     argparser = argparse.ArgumentParser()
     argparser.add_argument("label_path", type=Path, help="Path to the label data.")
-    argparser.add_argument('dps_weight', type=float, help="Weight of DPS step.")
-    argparser.add_argument('--primary-ckpt', type=Path, default=Path(f"./checkpoints/BMR_ZSR_256_YZ/checkpoint.pth"), 
+    argparser.add_argument('--primary-ckpt', type=Path, default=Path(f"./checkpoints/AAPM_256_CUBE_SCLIP_XY/checkpoint.pth"), 
                             help="(optional) Path to primary model checkpoint.")
-    argparser.add_argument('--auxiliary-ckpt', type=Path, default=Path(f"./checkpoints/BMR_ZSR_256_XY/checkpoint.pth"), 
+    argparser.add_argument('--auxiliary-ckpt', type=Path, default=Path(f"./checkpoints/AAPM_256_CUBE_SCLIP_YZ/checkpoint.pth"), 
                             help="(optional) Path to auxiliary model checkpoint.")
-    argparser.add_argument('--problem-name', type=str, default="BMR_SV_256",
+    argparser.add_argument('--problem-name', type=str, default="AAPM_SVCT_256",
                             help="(optional) Name of the problem which will be used to name the result directory.")
     argparser.add_argument('--batch-size', type=int, default=6,
                             help="(optional) Batch size for sampling.")
-    argparser.add_argument('--sv-sparsity', type=int, default=18,
+    argparser.add_argument('--sv-sparsity', type=int, default=5,
                             help="(optional) Sparsity for sparse-view CT.")
-    argparser.add_argument('--K', type=tutils.int_or_float, default=2,
+    argparser.add_argument('--dps-weight', type=float, default=None,
+                            help="(optional) Weight of DPS step.")
+    argparser.add_argument('--K', type=tutils.int_or_float, default=2.7,
                             help="(optional) Sampling contribution ratio of primary and auxiliary models. " + 
                             "Int inputs use a deterministic scheduler, while float inputs use a stochastic scheduler." + 
                             "Int K means primary model and auxiliary model will be updated K-1 times and 1 time, respectively." + 
                             "Float K means 1-(1/K) probability of updating the primary model and 1/K probability of updating the auxiliary model.")
     args = argparser.parse_args()
+
+    if args.dps_weight is None:
+        if args.sv_sparsity in SV_CT_DPS_WEIGHT_MAP:
+            args.dps_weight = SV_CT_DPS_WEIGHT_MAP[args.sv_sparsity]
+            logging.warning("Using auto DPS weight for the given ZSR factor. For the best performance, please specify the DPS weight manually.")
+        else:
+            raise ValueError("There is no default DPS weight for the given ZSR factor. Please specify the DPS weight manually.")
 
 
     save_root = Path(f"./invp_results/{args.problem_name}/x{args.sv_sparsity}/K{args.K}/lamb{args.dps_weight}/{datetime.datetime.now().strftime('%y%m%d_%H%M%S')}/")
@@ -114,7 +124,7 @@ def main():
 
 
     # evaluate result
-    tutils.print_and_save_eval_result(recon, label, save_root)
+    tutils.print_and_save_eval_result(recon, label, save_root, clip=False)
 
 
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ def main():
                            help="(optional) Path to auxiliary model checkpoint.")
     argparser.add_argument('--problem-name', type=str, default="BMR_UNCOND_256",
                            help="(optional) Name of the problem which will be used to name the result directory.")
-    argparser.add_argument('--batch-size', type=int, default=6,
+    argparser.add_argument('--batch-size', type=int, default=32,
                            help="(optional) Batch size for sampling.")
     argparser.add_argument('--K', type=tutils.int_or_float, default=2,
                             help="(optional) Sampling contribution ratio of primary and auxiliary models. " + 

@@ -73,9 +73,10 @@ def load_tpdm_label_data(path):
     return all_img, fname_list
 
 
-def eval_recon_result(volume_recon, volume_label, plane):
-    volume_recon = torch.clip(volume_recon, 0.0, 1.0)
-    volume_label = torch.clip(volume_label, 0.0, 1.0)
+def eval_recon_result(volume_recon, volume_label, plane, clip=True):
+    if clip:
+        volume_recon = torch.clip(volume_recon, 0.0, 1.0)
+        volume_label = torch.clip(volume_label, 0.0, 1.0)
 
     if plane == "coronal":
         pass
@@ -90,20 +91,20 @@ def eval_recon_result(volume_recon, volume_label, plane):
     else:
         raise ValueError(f"Unknown plane {plane}")
 
-    psnr = tm.functional.peak_signal_noise_ratio(volume_recon, volume_label, data_range=1.0)
+    psnr = tm.functional.peak_signal_noise_ratio(volume_recon, volume_label, data_range=1.0 if clip else None)
     psnr = psnr.item()
-    ssim = tm.functional.structural_similarity_index_measure(volume_recon, volume_label, data_range=1.0)
+    ssim = tm.functional.structural_similarity_index_measure(volume_recon, volume_label, data_range=1.0 if clip else None)
     ssim = ssim.item()
 
     return psnr, ssim
 
 
-def print_and_save_eval_result(volume_recon, volume_label, save_root):
+def print_and_save_eval_result(volume_recon, volume_label, save_root, clip=True):
 
     # evaluate result
-    psnr_c, ssim_c = eval_recon_result(volume_recon, volume_label, "coronal")
-    psnr_s, ssim_s = eval_recon_result(volume_recon, volume_label, "sagittal")
-    psnr_a, ssim_a = eval_recon_result(volume_recon, volume_label, "axial")
+    psnr_c, ssim_c = eval_recon_result(volume_recon, volume_label, "coronal", clip=clip)
+    psnr_s, ssim_s = eval_recon_result(volume_recon, volume_label, "sagittal", clip=clip)
+    psnr_a, ssim_a = eval_recon_result(volume_recon, volume_label, "axial", clip=clip)
 
     # print result
     print("\n<Evaluation result>")
